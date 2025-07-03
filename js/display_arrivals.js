@@ -4,6 +4,7 @@ const config = {
   refreshInterval: 30000,  // 30 seconds in ms
   directions: {
     Southbound: {
+      linesWithStatus: ['victoria', 'jubilee'],
       '490012230S': {
         name: 'Somerton Road',
         lines: [
@@ -134,7 +135,12 @@ async function fetchNationalRailArrivals(stopId, lineId, direction = '') {
     }).sort((a, b) => a.timeToStation - b.timeToStation);
 }
 
-
+async function fetchLineStatuses(lineIds) {
+  const url = `https://api.tfl.gov.uk/Line/${lineIds.join(',')}/Status`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch line status');
+  return await res.json();
+}
 
 function getStorageKey(type, id) {
   return `details-open-${type}-${id}`;
@@ -166,6 +172,30 @@ async function buildUI(directionToRender) {
     return;
   }
 
+  // Fetch and display line statuses at the top
+if (stops.linesWithStatus?.length > 0) {
+  const statusData = await fetchLineStatuses(stops.linesWithStatus);
+
+  statusData.forEach(status => {
+    const statusDiv = document.createElement('div');
+    statusDiv.className = 'line-status';
+
+    const lineName = document.createElement('h2');
+    lineName.textContent = `${status.name} Line: `;
+    //statusDiv.appendChild(lineName);
+
+    status.lineStatuses.forEach(s => {
+      //const statusMsg = document.createElement('div');
+      //statusMsg.textContent = `${s.statusSeverityDescription}${s.reason ? ' – ' + s.reason : ''}`;
+      lineName.textContent += `${s.statusSeverityDescription}${s.reason ? ' – ' + s.reason : ''}`;
+      //statusDiv.appendChild(statusMsg);
+    });
+    statusDiv.appendChild(lineName);
+
+    container.appendChild(statusDiv);
+  });
+}
+
   const directionContainer = document.createElement('div');
   directionContainer.className = 'direction-container';
 
@@ -174,6 +204,9 @@ async function buildUI(directionToRender) {
   directionContainer.appendChild(directionTitle);
 
   for (const [stopId, stopInfo] of Object.entries(stops)) {
+    if (stopId == 'linesWithStatus'){
+      continue
+    }
     const stopDetails = document.createElement('details');
     const stopKey = getStorageKey('stop', stopId);
     restoreDetailsState(stopDetails, stopKey);
@@ -272,5 +305,5 @@ async function buildUI(directionToRender) {
   container.appendChild(directionContainer);
 }
 
-buildUI();
+//buildUI();
 //setInterval(buildUI, config.refreshInterval);

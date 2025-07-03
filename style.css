@@ -120,3 +120,8 @@ details:not([open]) > summary::after {
   margin-left: 1.5rem; /* Indent lines under stop */
 }
 
+.line-status {
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+}
+

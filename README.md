@@ -15,7 +15,7 @@ The tfl departure stop points and directions filters are hardcoded and have been
 3. Filter for directions:
     1. Busses only have one direction from a naptan id and hence no need to filter
     2. Overground, tube: filter by direction 'inbount' or 'outbound'. Can see the direction from https://api.tfl.gov.uk/StopPoint/910GWHMDSTD/Arrivals
-    3. Thameslink: Harcode filters for destination stations in the north, here those containing ['albans', 'luton', 'beckford'].  
+    3. Thameslink: Harcode filters for destination stations in the north, here those containing ['albans', 'luton', 'bedford'].  
     Limitation: Should a train terminate at other stations it will be missed when going northbound and will not be filtered out when going southbound.
 
 Currently everything is hardcoded and very bare just to get it live and see how useful it is to me. The free versions of ChatGPT and Claude assisted in the build of this and future code restructure and logic enhancements are likely should it turn out to be useful.
