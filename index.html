@@ -41,7 +41,9 @@
 
   <!-- Then populate the links -->
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", () => {
+    // Wait for fonts to be fully loaded before manipulating DOM
+    document.fonts.ready.then(() => {
       const container = document.getElementById("links-container");
 
       if (typeof PageConfigs !== 'object') {
@@ -57,6 +59,7 @@
         container.appendChild(document.createElement("br"));
       }
     });
-  </script>
+  });
+</script>
 </body>
 </html>
