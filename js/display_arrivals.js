@@ -57,13 +57,16 @@ async function renderArrivalStops(stopConfig) {
       renderArrivalsToList(ul, arrivals, stop.directionFilter);
     } else {
       for (const lineConfig of stop.lines) {
-        const arrivals = await fetchFn(stopId, mode, lineConfig.line);
-        const filtered = arrivals.filter(
-          (arrival) =>
-            arrival.lineName.toLowerCase() === lineConfig.line.toLowerCase() &&
-            arrival.timeToStation <= lineConfig.maxArrivalTime * 60
-        );
-        renderArrivalsToList(ul, filtered, stop.directionFilter);
+        let arrivals = await fetchFn(stopId, mode, lineConfig.line);
+        if( arrivals){
+          arrivals = arrivals.filter(
+            (arrival) =>
+              arrival.lineName.toLowerCase() === lineConfig.line.toLowerCase() &&
+              arrival.timeToStation <= lineConfig.maxArrivalTime * 60
+          );
+          renderArrivalsToList(ul, arrivals, stop.directionFilter);
+        }
+        
       }
     }
 
@@ -108,6 +111,7 @@ async function fetchNationalRailArrivals(stopId, line) {
         direction: dep.destinationName
       };
     })
+    return data;
   } catch (e) {
     console.error("Failed to fetch national rail arrivals:", e);
     return [];
