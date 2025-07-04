@@ -1,11 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="preload" href="style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="style.css"></noscript>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TfL Arrivals</title>
+  <style>
+    body.landing {
+      padding: 3rem;
+      text-align: center;
+    }
+
+    body.landing h1 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+    }
+
+    body.landing a {
+      display: block;
+      margin: 1rem 0; /* vertical spacing */
+      padding: 1rem 2rem;
+      background: #0078d7;
+      color: white;
+      text-decoration: none;
+      border-radius: 0.5rem;
+      font-size: 1.25rem;
+      transition: background-color 0.3s ease;
+    }
+
+    body.landing a:hover {
+      background: #005fa3;
+    }
+  </style>
   </head>
 <body class="landing">
   <h1>Welcome to TfL Arrivals</h1>
