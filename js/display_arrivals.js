@@ -60,19 +60,14 @@ async function renderArrivalStops(stopConfigs) {
     } else {
       for (const lineConfig of stop.lines) {
         let arrivals;
-        if (mode === 'thameslink') {
+        if (mode === 'rail') {
           arrivals = await fetchNationalRailArrivals(stopId, stop);
         } else {
           arrivals = await fetchArrivals(stopId, mode, lineConfig.line);
         }
 
         if (arrivals) {
-          arrivals = arrivals.filter(
-            (arrival) =>
-              arrival.lineName.toLowerCase() === lineConfig.line.toLowerCase() &&
-              arrival.timeToStation <= lineConfig.maxArrivalTime * 60
-          );
-          renderArrivalsToList(ul, arrivals, stop.directionFilter);
+          renderArrivalsToList(ul, arrivals, stop.directionFilter, lineConfig);
         }
       }
     }
@@ -99,7 +94,7 @@ async function fetchArrivals(stopId, mode = "bus", line = null) {
 }
 
 async function fetchNationalRailArrivals(stopId, stopConfig) {
-  const line = stopConfig.lines?.[0]?.line || "thameslink";
+  const line = stopConfig.lines?.[0]?.line;
   const toStopId = stopConfig.destinationStation;
 
   if (!toStopId) {
@@ -113,15 +108,15 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
 
-    const data = await res.json();
+    const data_raw = await res.json();
     const now = new Date();
 
-    if (!Array.isArray(data.journeys)) {
+    if (!Array.isArray(data_raw.journeys)) {
       console.warn("Unexpected format from JourneyResults API");
       return [];
     }
 
-    return data.journeys.map(journey => {
+    data = data_raw.journeys.map(journey => {
       const leg = journey.legs?.[0];
       if (!leg) return null;
 
@@ -139,6 +134,7 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
         direction: leg.arrivalPoint?.commonName || "",
       };
     }).filter(Boolean);
+    return data
   } catch (e) {
     console.error("Failed to fetch national rail arrivals via Journey API:", e);
     return [];
@@ -146,10 +142,11 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
 }
 
 
-function renderArrivalsToList(ul, arrivals, directionFilter) {
+function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
+
   arrivals = arrivals.filter(
     (a) => {
-      directionFilterResult = true//directionFilter ? directionFilter.some(term => a.direction != '' && term.includes(a.direction.toLowerCase())) : true
+      directionFilterResult = true
       if(directionFilter){  
         if(directionFilter[0]) {
           directionFilterResult = directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
@@ -158,11 +155,20 @@ function renderArrivalsToList(ul, arrivals, directionFilter) {
         }
       } 
 
-      filter = a.timeToStation/60 <= maxArrivalTime && a.timeToStation > 0 && directionFilterResult;
+      lineFilterResult = true
+      if(lineConfig && lineConfig.lineName){
+        lineFilterResult = a.lineName.toLowerCase() === lineConfig.line.toLowerCase()
+      }
+
+      filter = a.timeToStation/60 <= maxArrivalTime 
+              && a.timeToStation > 0 
+              && directionFilterResult
+              && lineFilterResult;
       return (filter
       )
     }
-  );
+  )
+
   arrivals = arrivals.sort((a, b) => a.timeToStation - b.timeToStation);
  
   if (arrivals.length === 0) {
@@ -204,7 +210,7 @@ async function renderLineStatuses(lines) {
     data.forEach((line) => {
       const div = document.createElement("div");
       const status = line.lineStatuses[0]?.statusSeverityDescription || "Unknown";
-      div.innerHTML = `<strong>${capitalizeLineName(line.id)}</strong>: ${status}`;
+      div.innerHTML = `<strong>${capitalizeLineName(line.id)} Line</strong>: ${status}`;
       container.appendChild(div);
     });
   } catch (err) {

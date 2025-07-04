@@ -26,7 +26,7 @@ const ArrivalConfig = {
         stopId: '910GCRKLWD',
         name: 'Cricklewood Thameslink',
         lines: [{ line: 'thameslink', maxArrivalTime }],
-        mode: 'thameslink',
+        mode: 'rail',
         destinationStation: '940GZZLUKSX'
       },
       {
@@ -73,7 +73,7 @@ const ArrivalConfig = {
         stopId: '910GWHMPSTM',
         name: 'West Hampstead Thameslink',
         lines: [{ line: 'thameslink', maxArrivalTime }],
-        mode: 'thameslink',
+        mode: 'rail',
         destinationStation: '910GCRKLWD'
       },
     ],
@@ -97,16 +97,42 @@ const ArrivalConfig = {
         stopId: '910GBRENTX',
         name: 'Brent Cross West Thameslink Southbound',
         lines: [{ line: 'thameslink', maxArrivalTime }],
-        mode: 'thameslink',
+        mode: 'rail',
         destinationStation: '940GZZLUKSX'
       },
       {
         stopId: '910GBRENTX',
         name: 'Brent Cross West Thameslink Northbound',
         lines: [{ line: 'thameslink', maxArrivalTime }],
-        mode: 'thameslink',
+        mode: 'rail',
         destinationStation: '910GSTALBCY'
       }
+    ],
+    'Drayton Park': [
+      {
+        linesWithStatus: ['victoria']
+      },
+      {
+        stopId: '910GDRYP',
+        name: 'Drayton Park Southbound',
+        lines: [{ line: '', maxArrivalTime }],
+        mode: 'rail',
+        destinationStation: '940GZZLUHAI'
+      },
+      {
+        stopId: '910GHGHI',
+        name: 'Highbury and Islington Overground Milmay',
+        lines: [{line: 'mildmay', maxArrivalTime}],
+        mode: 'overground',
+        directionFilter: [true, ['outbound']],
+      },
+      {
+        stopId: '9100STPXBOX',
+        name: 'St Pancras Thameslink',
+        lines: [{ line: 'thameslink', maxArrivalTime }],
+        mode: 'rail',
+        destinationStation: '910GCRKLWD'
+      },
     ]
   }
 };
@@ -127,6 +153,10 @@ const PageConfigs = {
   brent_cross_west: {
     headline: "Brent Cross West",
     directionKey: "Brent Cross West",
+  },  
+  drayton_park: {
+    headline: "Drayton Park",
+    directionKey: "Drayton Park",
   },  
 };
 
