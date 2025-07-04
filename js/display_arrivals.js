@@ -29,17 +29,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-async function renderArrivalStops(stopConfig) {
+async function renderArrivalStops(stopConfigs) {
   const container = document.getElementById("arrivals-container");
   container.innerHTML = "";
 
-  if (stopConfig.linesWithStatus) {
-    await renderLineStatuses(stopConfig.linesWithStatus);
+  const statusEntry = stopConfigs.find(entry => entry.linesWithStatus);
+  if (statusEntry && statusEntry.linesWithStatus) {
+    await renderLineStatuses(statusEntry.linesWithStatus);
   }
 
-  for (const [stopId, stop] of Object.entries(stopConfig)) {
-    if (stopId === "linesWithStatus") continue;
-
+  for (const stop of stopConfigs) {
+    if (stop.linesWithStatus) {
+      continue
+    }
+    const stopId = stop.stopId;
     const div = document.createElement("div");
     div.className = "stop-block";
 
@@ -59,12 +62,13 @@ async function renderArrivalStops(stopConfig) {
     } else {
       for (const lineConfig of stop.lines) {
         let arrivals;
-        if ( mode === 'thameslink' ) {
+        if (mode === 'thameslink') {
           arrivals = await fetchNationalRailArrivals(stopId, stop);
         } else {
           arrivals = await fetchArrivals(stopId, mode, lineConfig.line);
         }
-        if(arrivals){
+
+        if (arrivals) {
           arrivals = arrivals.filter(
             (arrival) =>
               arrival.lineName.toLowerCase() === lineConfig.line.toLowerCase() &&
@@ -72,7 +76,6 @@ async function renderArrivalStops(stopConfig) {
           );
           renderArrivalsToList(ul, arrivals, stop.directionFilter);
         }
-        
       }
     }
 
