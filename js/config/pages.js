@@ -121,7 +121,7 @@ const ArrivalConfig = {
       },
       {
         stopId: '910GHGHI',
-        name: 'Highbury and Islington Overground Milmay',
+        name: 'Highbury and Islington Overground Mildmay',
         lines: [{line: 'mildmay', maxArrivalTime}],
         mode: 'overground',
         directionFilter: [true, ['outbound']],

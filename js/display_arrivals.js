@@ -1,3 +1,4 @@
+
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const pageKey = params.get("page");
@@ -17,10 +18,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("headline").textContent = headline;
 
-  // Initial render
   await renderArrivalStops(stops);
 
-  // Set up refresh interval with mobile-friendly timing
   if (ArrivalConfig.refreshInterval) {
     setInterval(async () => {
       await renderArrivalStops(stops);
@@ -30,11 +29,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function renderArrivalStops(stopConfigs) {
   const container = document.getElementById("arrivals-container");
-  
-  // Show loading state
-  container.innerHTML = '<div class="loading">Loading arrivals...</div>';
+  container.innerHTML = "";
 
-  // Handle line statuses first
   const statusEntry = stopConfigs.find(entry => entry.linesWithStatus);
   if (statusEntry && statusEntry.linesWithStatus) {
     await renderLineStatuses(statusEntry.linesWithStatus);
@@ -43,78 +39,40 @@ async function renderArrivalStops(stopConfigs) {
   // Clear loading state
   container.innerHTML = "";
 
-  // Render stops with mobile optimization
-  let isFirstStop = true;
-  
   for (const stop of stopConfigs) {
     if (stop.linesWithStatus) {
-      continue;
+      continue
     }
-    
-    const stopDiv = await renderSingleStop(stop, isFirstStop);
-    container.appendChild(stopDiv);
-    
-    if (isFirstStop) {
-      // Mobile rendering fix for first element
-      requestAnimationFrame(() => {
-        stopDiv.offsetHeight; // Force reflow
-        stopDiv.classList.add('loaded');
-      });
-      isFirstStop = false;
-    }
-  }
-}
+    const stopId = stop.stopId;
+    const div = document.createElement("div");
+    div.className = "stop-block";
 
-async function renderSingleStop(stop, isFirst = false) {
-  const stopId = stop.stopId;
-  const div = document.createElement("div");
-  div.className = "stop-block";
-  
-  // Add mobile-specific class for first element
-  if (isFirst) {
-    div.classList.add('first-stop');
-  }
+    const stopName = stop.name || "Unnamed Stop";
+    const title = document.createElement("h2");
+    title.textContent = stopName;
+    div.appendChild(title);
 
-  const stopName = stop.name || "Unnamed Stop";
-  const title = document.createElement("h2");
-  title.textContent = stopName;
-  div.appendChild(title);
+    const ul = document.createElement("ul");
+    div.appendChild(ul);
 
-  const ul = document.createElement("ul");
-  div.appendChild(ul);
-
-  const mode = stop.mode || "bus";
-
-  try {
+    const mode = stop.mode || "bus";
+    try{
     if (!stop.lines || stop.lines.length === 0) {
       const arrivals = await fetchArrivals(stopId, mode);
       renderArrivalsToList(ul, arrivals, stop.directionFilter);
     } else {
-      // Handle multiple lines with better error handling
-      const arrivalPromises = stop.lines.map(async (lineConfig) => {
-        try {
-          let arrivals;
-          if (mode === 'rail') {
-            arrivals = await fetchNationalRailArrivals(stopId, stop);
-          } else {
-            arrivals = await fetchArrivals(stopId, mode, lineConfig.line);
-          }
-          return { arrivals, lineConfig };
-        } catch (error) {
-          console.error(`Error fetching arrivals for line ${lineConfig.line}:`, error);
-          return { arrivals: [], lineConfig };
+      for (const lineConfig of stop.lines) {
+        let arrivals;
+        if (mode === 'rail') {
+          arrivals = await fetchNationalRailArrivals(stopId, stop);
+        } else {
+          arrivals = await fetchArrivals(stopId, mode, lineConfig.line);
         }
-      });
 
-      const results = await Promise.all(arrivalPromises);
-      
-      // Combine all arrivals
-      const allArrivals = [];
-      results.forEach(({ arrivals, lineConfig }) => {
-        if (arrivals && arrivals.length > 0) {
+        if (arrivals) {
           renderArrivalsToList(ul, arrivals, stop.directionFilter, lineConfig);
         }
-      });
+      }
     }
   } catch (error) {
     console.error(`Error rendering stop ${stopName}:`, error);
@@ -123,13 +81,12 @@ async function renderSingleStop(stop, isFirst = false) {
     errorLi.style.color = "#dc3545";
     ul.appendChild(errorLi);
   }
-
-  return div;
+  container.appendChild(div);
+}
 }
 
 async function fetchArrivals(stopId, mode = "bus", line = null) {
   const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/Arrivals`;
-  
   try {
     // Add timeout for mobile networks
     const controller = new AbortController();
@@ -154,7 +111,7 @@ async function fetchArrivals(stopId, mode = "bus", line = null) {
     if (err.name === 'AbortError') {
       console.error(`Request timeout for ${stopId}`);
     } else {
-      console.error(`Failed to fetch arrivals for ${stopId}`, err);
+    console.error(`Failed to fetch arrivals for ${stopId}`, err);
     }
     return [];
   }
@@ -189,7 +146,7 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
       return [];
     }
 
-    const data = data_raw.journeys.map(journey => {
+    data = data_raw.journeys.map(journey => {
       const leg = journey.legs?.[0];
       if (!leg) return null;
 
@@ -213,69 +170,61 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
     if (e.name === 'AbortError') {
       console.error("National rail request timeout");
     } else {
-      console.error("Failed to fetch national rail arrivals via Journey API:", e);
+    console.error("Failed to fetch national rail arrivals via Journey API:", e);
     }
     return [];
   }
 }
 
 function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
-  // Enhanced filtering with better mobile performance
-  const filteredArrivals = arrivals.filter((a) => {
-    let directionFilterResult = true;
-    if (directionFilter) {  
-      if (directionFilter[0]) {
-        directionFilterResult = directionFilter[1].some(term => 
-          a.direction.toLowerCase().includes(term.toLowerCase())
-        );
-      } else {
-        directionFilterResult = !directionFilter[1].some(term => 
-          a.direction.toLowerCase().includes(term.toLowerCase())
-        );
+
+  arrivals = arrivals.filter(
+    (a) => {
+      directionFilterResult = true
+      if(directionFilter){  
+        if(directionFilter[0]) {
+          directionFilterResult = directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
+        } else {
+          directionFilterResult = !directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
+        }
+      } 
+
+      lineFilterResult = true
+      if(lineConfig && lineConfig.lineName){
+        lineFilterResult = a.lineName.toLowerCase() === lineConfig.line.toLowerCase()
       }
-    } 
 
-    let lineFilterResult = true;
-    if (lineConfig && lineConfig.lineName) {
-      lineFilterResult = a.lineName.toLowerCase() === lineConfig.line.toLowerCase();
+      filter = a.timeToStation/60 <= maxArrivalTime 
+              && a.timeToStation > 0 
+              && directionFilterResult
+              && lineFilterResult;
+      return (filter
+      )
     }
+  )
 
-    // Check if maxArrivalTime is defined, use default if not
-    const maxTime = typeof maxArrivalTime !== 'undefined' ? maxArrivalTime : 60; // 60 minutes default
-    
-    return a.timeToStation/60 <= maxTime 
-           && a.timeToStation > 0 
-           && directionFilterResult
-           && lineFilterResult;
-  });
-
-  // Sort by arrival time
-  filteredArrivals.sort((a, b) => a.timeToStation - b.timeToStation);
+  arrivals = arrivals.sort((a, b) => a.timeToStation - b.timeToStation);
  
-  if (filteredArrivals.length === 0) {
+  if (arrivals.length === 0) {
     const li = document.createElement("li");
-    li.textContent = "No upcoming arrivals.";
-    li.style.color = "#666";
+    console.log(lineConfig)
+    if(lineConfig && lineConfig.line){
+      li.textContent += lineConfig.line + ": ";
+    }
+    li.textContent += "No upcoming arrivals in the next " + maxArrivalTime + " minutes.";
+    li.style.color = "#ffc107";
     ul.appendChild(li);
     return;
   }
 
-  // Limit results on mobile to prevent performance issues
-  const maxResults = window.innerWidth < 768 ? 10 : 15;
-  const limitedArrivals = filteredArrivals.slice(0, maxResults);
-
-  limitedArrivals.forEach((arrival) => {
+  arrivals.forEach((arrival) => {
     const li = document.createElement("li");
     const minutes = Math.round(arrival.timeToStation / 60);
     const arrivalTime = arrival.expectedArrivalTime
       ? formatTime(new Date(arrival.expectedArrivalTime))
       : formatTime(new Date(Date.now() + arrival.timeToStation * 1000));
 
-    // Mobile-friendly formatting
-    const lineName = capitalizeLineName(arrival.lineName);
-    const destination = arrival.destinationName;
-    
-    li.innerHTML = `${lineName} to ${destination} – <strong>${minutes} min</strong> <span style="color: #666;">(${arrivalTime})</span>`;
+    li.innerHTML = `${capitalizeLineName(arrival.lineName)} to ${arrival.destinationName} – <strong>${minutes} min</strong> (${arrivalTime})`;
     ul.appendChild(li);
   });
 }
@@ -318,8 +267,8 @@ async function renderLineStatuses(lines) {
     if (err.name === 'AbortError') {
       console.error("Line status request timeout");
     } else {
-      console.error("Failed to fetch line statuses", err);
-    }
+    console.error("Failed to fetch line statuses", err);
+  }
     
     // Show error state
     container.innerHTML = '<div style="color: #dc3545;">Unable to load line status</div>';
@@ -342,23 +291,3 @@ function capitalizeLineName(name) {
 function formatTime(date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
-
-// Mobile-specific optimizations
-if ('connection' in navigator) {
-  // Adjust refresh rate based on connection speed
-  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  if (connection && connection.effectiveType === 'slow-2g') {
-    console.log('Slow connection detected, consider reducing refresh frequency');
-  }
-}
-
-// Handle visibility change to pause/resume updates when tab is hidden
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    console.log('Page hidden, pausing updates');
-    // Could pause interval here if needed
-  } else {
-    console.log('Page visible, resuming updates');
-    // Could resume interval here if needed
-  }
-});
