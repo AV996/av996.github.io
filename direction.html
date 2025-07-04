@@ -5,7 +5,12 @@
   <title>Transport Arrivals</title>
   <script src="js/config/pages.js" defer></script>
   <script src="js/display_arrivals.js" defer></script>
+
   <style>
+    html {
+      visibility: hidden;
+    }
+
     body {
       font-family: sans-serif;
       background: #f9f9f9;
@@ -22,9 +27,16 @@
       font-weight: bold;
       margin-bottom: 0.3rem;
     }
-
   </style>
+
+  <script>
+    // Ensure fonts are ready before rendering
+    document.fonts.ready.then(() => {
+      document.documentElement.style.visibility = "visible";
+    });
+  </script>
 </head>
+
 <body>
   <a href="index.html" class="back-link">← Back to Landing Page</a>
   <h1 id="headline">Loading...</h1>
