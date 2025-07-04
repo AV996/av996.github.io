@@ -50,15 +50,19 @@ async function renderArrivalStops(stopConfig) {
     div.appendChild(ul);
 
     const mode = stop.mode || "bus";
-    const fetchFn = mode === "thameslink" ? fetchNationalRailArrivals : fetchArrivals;
 
     if (!stop.lines || stop.lines.length === 0) {
-      const arrivals = await fetchFn(stopId, mode);
+      const arrivals = await fetchArrivals(stopId, mode);
       renderArrivalsToList(ul, arrivals, stop.directionFilter);
     } else {
       for (const lineConfig of stop.lines) {
-        let arrivals = await fetchFn(stopId, mode, lineConfig.line);
-        if( arrivals){
+        let arrivals;
+        if ( mode === 'thameslink' ) {
+          arrivals = await fetchNationalRailArrivals(stopId, stop);
+        } else {
+          arrivals = await fetchArrivals(stopId, mode, lineConfig.line);
+        }
+        if(arrivals){
           arrivals = arrivals.filter(
             (arrival) =>
               arrival.lineName.toLowerCase() === lineConfig.line.toLowerCase() &&
@@ -83,7 +87,7 @@ async function fetchArrivals(stopId, mode = "bus", line = null) {
     if (line) {
       filtered = arrivals.filter((a) => a.lineName.toLowerCase() === line.toLowerCase());
     }
-    filtered//.sort((a, b) => a.timeToStation - b.timeToStation);
+    filtered
     return filtered;
   } catch (err) {
     console.error(`Failed to fetch arrivals for ${stopId}`, err);
@@ -91,32 +95,53 @@ async function fetchArrivals(stopId, mode = "bus", line = null) {
   }
 }
 
-async function fetchNationalRailArrivals(stopId, line) {
-  const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/ArrivalDepartures?lineIds=${line}`;
+async function fetchNationalRailArrivals(stopId, stopConfig) {
+  const line = stopConfig.lines?.[0]?.line || "thameslink";
+  const toStopId = stopConfig.destinationStation;
+
+  if (!toStopId) {
+    console.warn(`Missing destinationStation for stopId ${stopId}`);
+    return [];
+  }
+
+  const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${stopId}/to/${toStopId}?line=${line}&useRealTimeLiveArrivals=true&mode=national-rail&alternativeWalking=false`;
+
   try {
     const res = await fetch(url);
-    const data_raw = await res.json();
-    const data = data_raw.map(dep => {
-      const depTime = new Date(dep.estimatedTimeOfDeparture);
-      const minutes = Math.round((depTime - new Date()) / 60000);
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+
+    const data = await res.json();
+    const now = new Date();
+
+    if (!Array.isArray(data.journeys)) {
+      console.warn("Unexpected format from JourneyResults API");
+      return [];
+    }
+
+    return data.journeys.map(journey => {
+      const leg = journey.legs?.[0];
+      if (!leg) return null;
+
+      const departureTime = new Date(journey.startDateTime);
+      const minutes = Math.round((departureTime - now) / 60000);
 
       return {
-        destinationName: dep.destinationName,
+        destinationName: leg.arrivalPoint?.commonName || "Unknown",
         timeToStation: minutes * 60,
-        departureTime: depTime,
-        platform: dep.platformName,
-        lineName: line,
-        cause: dep.cause,
-        departureStatus: dep.departureStatus,
-        direction: dep.destinationName
+        departureTime: departureTime,
+        platform: leg.departurePlatform || "N/A",
+        lineName: leg.routeOptions?.[0]?.name || line,
+        cause: leg.disruptions?.[0]?.description || "",
+        departureStatus: minutes >= 0 ? "ON TIME" : "DELAYED",
+        direction: leg.arrivalPoint?.commonName || "",
       };
-    })
-    return data;
+    }).filter(Boolean);
   } catch (e) {
-    console.error("Failed to fetch national rail arrivals:", e);
+    console.error("Failed to fetch national rail arrivals via Journey API:", e);
     return [];
   }
 }
+
 
 function renderArrivalsToList(ul, arrivals, directionFilter) {
   arrivals = arrivals.filter(

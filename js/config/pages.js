@@ -22,7 +22,7 @@ const ArrivalConfig = {
         name: 'Cricklewood Thameslink',
         lines: [{ line: 'thameslink', maxArrivalTime: maxArrivalTime }],
         mode: 'thameslink',
-        directionFilter: [false,['albans', 'bedford', 'luton']], //false as don't want ['albans,'bedford','luton']
+        destinationStation: '940GZZLUKSX'
       },
       '910GWHMDSTD': {
         name: 'West Hampstead Overground',
@@ -59,11 +59,11 @@ const ArrivalConfig = {
           { line: '189', maxArrivalTime: maxArrivalTime },
         ],
       },
-      '910GWHMPSTM': {
+      '910GWHMPSTM': { 
         name: 'West Hampstead Thameslink',
         lines: [{ line: 'thameslink', maxArrivalTime: maxArrivalTime }],
         mode: 'thameslink',
-        directionFilter: [true,['albans', 'bedford', 'luton']],
+        destinationStation: '910GCRKLWD'
       },
     },
   }
