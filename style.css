@@ -12,37 +12,6 @@ h1 {
   margin-bottom: 1.5rem;
 }
 
-h2.stop-name {
-  font-size: 1.8rem;
-  font-weight: bold;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  color: #111;
-}
-
-.arrival-group {
-  margin-left: 1.5rem;
-}
-
-h3 {
-  font-size: 1.2rem;
-  margin-top: 1rem;
-}
-
-.arrival {
-  background: white;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.5rem;
-  border-radius: 0.4rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.no-arrivals {
-  font-style: italic;
-  color: #777;
-  margin-left: 0.5rem;
-}
-
 /* Styles for landing page */
 
 body.landing {
@@ -53,18 +22,6 @@ body.landing {
 body.landing h1 {
   font-size: 2.5rem;
   margin-bottom: 2rem;
-}
-
-body.landing a {
-  display: inline-block;
-  margin: 1rem;
-  padding: 1rem 2rem;
-  background: #0078d7;
-  color: white;
-  text-decoration: none;
-  border-radius: 0.5rem;
-  font-size: 1.25rem;
-  transition: background-color 0.3s ease;
 }
 
 body.landing a {
@@ -83,45 +40,7 @@ body.landing a:hover {
   background: #005fa3;
 }
 
-/* Back link style */
-
-a.back-link {
-  display: inline-block;
-  margin-top: 1rem;
-  text-decoration: none;
-  color: #0078d7;
-  font-weight: bold;
-}
-
-details > summary {
-  cursor: pointer;
-  font-weight: bold;
-  margin-top: 1rem;
-  padding: 0.3rem 0;
-}
-
-details[open] > summary::after {
-  content: "▲";
-  float: right;
-}
-
-details:not([open]) > summary::after {
-  content: "▼";
-  float: right;
-}
-
-.stop-summary {
-  font-size: 1.4rem;
-  font-weight: bold;
-  margin-top: 1rem;
-}
-
-.line-group {
-  margin-left: 1.5rem; /* Indent lines under stop */
-}
-
 .line-status {
   font-weight: bold;
   margin-bottom: 0.3rem;
 }
-
