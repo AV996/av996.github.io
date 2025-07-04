@@ -90,11 +90,9 @@ async function fetchArrivals(stopId, mode = "bus", line = null) {
 
 async function fetchNationalRailArrivals(stopId, line) {
   const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/ArrivalDepartures?lineIds=${line}`;
- console.log(url)
   try {
     const res = await fetch(url);
     const data_raw = await res.json();
-    console.log(data_raw)
     const data = data_raw.map(dep => {
       const depTime = new Date(dep.estimatedTimeOfDeparture);
       const minutes = Math.round((depTime - new Date()) / 60000);
@@ -109,9 +107,7 @@ async function fetchNationalRailArrivals(stopId, line) {
         departureStatus: dep.departureStatus,
         direction: dep.destinationName
       };
-    })//.sort((a, b) => a.timeToStation - b.timeToStation);
-    console.log('data',data)
-    return data;
+    })
   } catch (e) {
     console.error("Failed to fetch national rail arrivals:", e);
     return [];
@@ -119,16 +115,10 @@ async function fetchNationalRailArrivals(stopId, line) {
 }
 
 function renderArrivalsToList(ul, arrivals, directionFilter) {
-  console.log(ul)
-  console.log(arrivals)
-  console.log('directionFilter',directionFilter)
-  console.log(maxArrivalTime)
-  
   arrivals = arrivals.filter(
     (a) => {
       directionFilterResult = true//directionFilter ? directionFilter.some(term => a.direction != '' && term.includes(a.direction.toLowerCase())) : true
       if(directionFilter){  
-        console.log('dir filter 0', directionFilter[0])
         if(directionFilter[0]) {
           directionFilterResult = directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
         } else {
@@ -136,13 +126,11 @@ function renderArrivalsToList(ul, arrivals, directionFilter) {
         }
       } 
 
-      filter = a.timeToStation /60 <= maxArrivalTime && directionFilterResult;
-      //console.log(a, a.direction, filter)
+      filter = a.timeToStation/60 <= maxArrivalTime && directionFilterResult;
       return (filter
       )
     }
   );
-  console.log(arrivals)
   arrivals = arrivals.sort((a, b) => a.timeToStation - b.timeToStation);
  
   if (arrivals.length === 0) {
