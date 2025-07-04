@@ -1,126 +1,102 @@
-const maxArrivalTime =  3600
 
-const config = {
-  refreshInterval: 30000,  // 30 seconds in ms
-  directions: {
-    Southbound: {
-      linesWithStatus: ['victoria', 'jubilee'],
-      '490012230S': {
-        name: 'Somerton Road',
-        lines: [
-          { line: 'C11', maxArrivalTime: maxArrivalTime },  
-          { line: '189', maxArrivalTime: maxArrivalTime }   
-        ],
-      },
-      '490015253T':{
-            name: 'Cricklewood Lane',
-            lines: [
-          { line: 'C11', maxArrivalTime: maxArrivalTime  },  
-        ],
-      },
-      '910GCRKLWD': {
-        name: 'Cricklewood Thameslink',
-        lines: [{ line: 'thameslink', maxArrivalTime: maxArrivalTime }],
-        mode: 'national-rail',
-      },
-      '910GWHMDSTD': {
-        name: 'West Hampstead Overground',
-        lines: [],  // No specific lines, show all
-        mode: 'overground',
-        directionFilter: 'inbound',
-      },
-      '940GZZLUWHP': {
-        name: 'West Hampstead Tube',
-        lines: [],  // No specific lines, show all
-        mode: 'tube',
-        directionFilter: 'outbound',
-      },
-    },
-    Northbound: {
-      '490012230N': {
-        name: 'Somerton Road',
-        lines: [
-          { line: 'C11', maxArrivalTime: maxArrivalTime },
-          { line: '189', maxArrivalTime: maxArrivalTime }
-        ],
-      },
-    },
-    'Northbound WH': {
-      '490001330N': {
-        name: 'West Hampstead',
-        lines: [
-          { line: 'C11', maxArrivalTime: maxArrivalTime },
-        ],
-      },
-      '490001038N': {
-        name: 'Brondesbury',
-        lines: [
-          { line: '189', maxArrivalTime: maxArrivalTime },
-        ],
-      },
-      '910GWHMPSTM': {
-        name: 'West Hampstead Thameslink',
-        lines: [{ line: 'thameslink', maxArrivalTime: maxArrivalTime }],
-        mode: 'national-rail',
-      },
-    },
-  },
-};
+document.addEventListener("DOMContentLoaded", async () => {
+  const params = new URLSearchParams(window.location.search);
+  const pageKey = params.get("page");
 
-// fetchArrivals.js
-async function fetchArrivals(stopId, options = {}) {
-  // options: { lines: [], mode, directionFilter, maxTimeSeconds }
-
-  const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/Arrivals`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch arrivals');
-  let data = await res.json();
-
-  // Filter by mode/direction if given (e.g. for Overground trains)
-  if (options.directionFilter) {
-    data = data.filter(
-      arr => arr.direction && arr.direction.toLowerCase() === options.directionFilter.toLowerCase()
-    );
+  if (!pageKey || !PageConfigs[pageKey]) {
+    document.getElementById("headline").textContent = "Invalid or missing page.";
+    return;
   }
 
-  // Filter by lines if provided
-  if (options.lines && options.lines.length > 0) {
-    data = data.filter(arr => options.lines.includes(arr.lineName));
+  const { headline, directionKey } = PageConfigs[pageKey];
+  const stops = ArrivalConfig.directions[directionKey];
+
+  if (!stops) {
+    document.getElementById("headline").textContent = "Invalid direction config.";
+    return;
   }
 
-  // Filter by max time (seconds)
-  if (options.maxTimeSeconds) {
-    data = data.filter(arr => arr.timeToStation <= options.maxTimeSeconds);
+  document.getElementById("headline").textContent = headline;
+
+  await renderArrivalStops(stops);
+
+  if (ArrivalConfig.refreshInterval) {
+    setInterval(async () => {
+      await renderArrivalStops(stops);
+    }, ArrivalConfig.refreshInterval);
+  }
+});
+
+async function renderArrivalStops(stopConfig) {
+  const container = document.getElementById("arrivals-container");
+  container.innerHTML = "";
+
+  if (stopConfig.linesWithStatus) {
+    await renderLineStatuses(stopConfig.linesWithStatus);
   }
 
-  // Sort ascending by timeToStation
-  data.sort((a, b) => a.timeToStation - b.timeToStation);
+  for (const [stopId, stop] of Object.entries(stopConfig)) {
+    if (stopId === "linesWithStatus") continue;
 
-  return data;
+    const div = document.createElement("div");
+    div.className = "stop-block";
+
+    const stopName = stop.name || "Unnamed Stop";
+    const title = document.createElement("h2");
+    title.textContent = stopName;
+    div.appendChild(title);
+
+    const ul = document.createElement("ul");
+    div.appendChild(ul);
+
+    const mode = stop.mode || "bus";
+    const fetchFn = mode === "thameslink" ? fetchNationalRailArrivals : fetchArrivals;
+
+    if (!stop.lines || stop.lines.length === 0) {
+      const arrivals = await fetchFn(stopId, mode);
+      renderArrivalsToList(ul, arrivals, stop.directionFilter);
+    } else {
+      for (const lineConfig of stop.lines) {
+        const arrivals = await fetchFn(stopId, mode, lineConfig.line);
+        const filtered = arrivals.filter(
+          (arrival) =>
+            arrival.lineName.toLowerCase() === lineConfig.line.toLowerCase() &&
+            arrival.timeToStation <= lineConfig.maxArrivalTime * 60
+        );
+        renderArrivalsToList(ul, filtered, stop.directionFilter);
+      }
+    }
+
+    container.appendChild(div);
+  }
 }
 
-async function fetchNationalRailArrivals(stopId, lineId, direction = '') {
-  const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/ArrivalDepartures?lineIds=${lineId}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch National Rail arrivals');
-  const data = await res.json();
+async function fetchArrivals(stopId, mode = "bus", line = null) {
+  const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/Arrivals`;
+  try {
+    const res = await fetch(url);
+    const arrivals = await res.json();
+    let filtered = arrivals;
+    if (line) {
+      filtered = arrivals.filter((a) => a.lineName.toLowerCase() === line.toLowerCase());
+    }
+    filtered//.sort((a, b) => a.timeToStation - b.timeToStation);
+    return filtered;
+  } catch (err) {
+    console.error(`Failed to fetch arrivals for ${stopId}`, err);
+    return [];
+  }
+}
 
-  const excludedTerms = ['albans', 'luton', 'bedford'];
-
-  return data
-    .filter(dep => {
-      if (direction === 'Southbound') {
-        const dest = (dep.destinationName || '').toLowerCase();
-        return !excludedTerms.some(term => dest.includes(term));
-      }
-      if (direction.includes('Northbound')) {
-        const dest = (dep.destinationName || '').toLowerCase();
-        return excludedTerms.some(term => dest.includes(term));
-      }
-      return true;
-    })
-    .map(dep => {
-      const depTime = new Date(dep.estimatedTimeOfDeparture || dep.scheduledTimeOfDeparture);
+async function fetchNationalRailArrivals(stopId, line) {
+  const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/ArrivalDepartures?lineIds=${line}`;
+ console.log(url)
+  try {
+    const res = await fetch(url);
+    const data_raw = await res.json();
+    console.log(data_raw)
+    const data = data_raw.map(dep => {
+      const depTime = new Date(dep.estimatedTimeOfDeparture);
       const minutes = Math.round((depTime - new Date()) / 60000);
 
       return {
@@ -128,182 +104,99 @@ async function fetchNationalRailArrivals(stopId, lineId, direction = '') {
         timeToStation: minutes * 60,
         departureTime: depTime,
         platform: dep.platformName,
-        lineName: lineId,
+        lineName: line,
         cause: dep.cause,
         departureStatus: dep.departureStatus,
+        direction: dep.destinationName
       };
-    }).sort((a, b) => a.timeToStation - b.timeToStation);
-}
-
-async function fetchLineStatuses(lineIds) {
-  const url = `https://api.tfl.gov.uk/Line/${lineIds.join(',')}/Status`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch line status');
-  return await res.json();
-}
-
-function getStorageKey(type, id) {
-  return `details-open-${type}-${id}`;
-}
-
-function restoreDetailsState(detailsEl, key) {
-  const saved = localStorage.getItem(key);
-  if (saved === null) {
-    // First time: open all
-    detailsEl.open = true;
-  } else {
-    detailsEl.open = saved === 'true';
+    })//.sort((a, b) => a.timeToStation - b.timeToStation);
+    console.log('data',data)
+    return data;
+  } catch (e) {
+    console.error("Failed to fetch national rail arrivals:", e);
+    return [];
   }
 }
 
-function saveDetailsState(detailsEl, key) {
-  detailsEl.addEventListener('toggle', () => {
-    localStorage.setItem(key, detailsEl.open);
-  });
-}
+function renderArrivalsToList(ul, arrivals, directionFilter) {
+  console.log(ul)
+  console.log(arrivals)
+  console.log('directionFilter',directionFilter)
+  console.log(maxArrivalTime)
+  
+  arrivals = arrivals.filter(
+    (a) => {
+      directionFilterResult = true//directionFilter ? directionFilter.some(term => a.direction != '' && term.includes(a.direction.toLowerCase())) : true
+      if(directionFilter){  
+        console.log('dir filter 0', directionFilter[0])
+        if(directionFilter[0]) {
+          directionFilterResult = directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
+        } else {
+          directionFilterResult = !directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
+        }
+      } 
 
-async function buildUI(directionToRender) {
-  const container = document.getElementById('arrivals');
-  container.innerHTML = '';
-
-  const stops = config.directions[directionToRender];
-  if (!stops) {
-    container.textContent = `No configuration found for direction: ${directionToRender}`;
+      filter = a.timeToStation /60 <= maxArrivalTime && directionFilterResult;
+      //console.log(a, a.direction, filter)
+      return (filter
+      )
+    }
+  );
+  console.log(arrivals)
+  arrivals = arrivals.sort((a, b) => a.timeToStation - b.timeToStation);
+ 
+  if (arrivals.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "No upcoming arrivals.";
+    ul.appendChild(li);
     return;
   }
 
-  // Fetch and display line statuses at the top
-if (stops.linesWithStatus?.length > 0) {
-  const statusData = await fetchLineStatuses(stops.linesWithStatus);
+  arrivals.forEach((arrival) => {
+    const li = document.createElement("li");
+    const minutes = Math.round(arrival.timeToStation / 60);
+    const arrivalTime = arrival.expectedArrivalTime
+      ? formatTime(new Date(arrival.expectedArrivalTime))
+      : formatTime(new Date(Date.now() + arrival.timeToStation * 1000));
 
-  statusData.forEach(status => {
-    const statusDiv = document.createElement('div');
-    statusDiv.className = 'line-status';
-
-    const lineName = document.createElement('h2');
-    lineName.textContent = `${status.name} Line: `;
-    //statusDiv.appendChild(lineName);
-
-    status.lineStatuses.forEach(s => {
-      //const statusMsg = document.createElement('div');
-      //statusMsg.textContent = `${s.statusSeverityDescription}${s.reason ? ' – ' + s.reason : ''}`;
-      lineName.textContent += `${s.statusSeverityDescription}${s.reason ? ' – ' + s.reason : ''}`;
-      //statusDiv.appendChild(statusMsg);
-    });
-    statusDiv.appendChild(lineName);
-
-    container.appendChild(statusDiv);
+    li.textContent = `${capitalizeLineName(arrival.lineName)} to ${arrival.destinationName} – ${minutes} min (${arrivalTime})`;
+    ul.appendChild(li);
   });
 }
 
-  const directionContainer = document.createElement('div');
-  directionContainer.className = 'direction-container';
+async function renderLineStatuses(lines) {
+  const statusContainerId = "line-status";
+  let container = document.getElementById(statusContainerId);
 
-  const directionTitle = document.createElement('h1');
-  directionTitle.textContent = directionToRender;
-  directionContainer.appendChild(directionTitle);
-
-  for (const [stopId, stopInfo] of Object.entries(stops)) {
-    if (stopId == 'linesWithStatus'){
-      continue
-    }
-    const stopDetails = document.createElement('details');
-    const stopKey = getStorageKey('stop', stopId);
-    restoreDetailsState(stopDetails, stopKey);
-    saveDetailsState(stopDetails, stopKey);
-
-    const stopSummary = document.createElement('summary');
-    stopSummary.textContent = stopInfo.name;
-    stopSummary.classList.add('stop-summary'); // style it as needed
-    stopDetails.appendChild(stopSummary);
-
-    let arrivals;
-    try {
-      const linesForFetch = stopInfo.lines.length > 0
-        ? stopInfo.lines.map(l => l.line)
-        : [];
-
-        if (stopInfo.mode === 'national-rail') {
-    arrivals = [];
-    for (const lineId of linesForFetch) {
-      const lineArrivals = await fetchNationalRailArrivals(stopId, lineId, directionToRender);
-      arrivals.push(...lineArrivals);
-    }
-    } else {
-
-      arrivals = await fetchArrivals(stopId, {
-        lines: linesForFetch,
-        mode: stopInfo.mode,
-        directionFilter: stopInfo.directionFilter,
-        maxTimeSeconds: maxArrivalTime,
-      });
-    } }
-    catch (e) {
-      const errDiv = document.createElement('div');
-      errDiv.textContent = `Failed to load arrivals for ${stopInfo.name}`;
-      stopDetails.appendChild(errDiv);
-      directionContainer.appendChild(stopDetails);
-      continue;
-    }
-
-    const linesToShow = stopInfo.lines.length > 0
-      ? stopInfo.lines
-      : [...new Set(arrivals.map(a => a.lineName))].map(line => ({ line, maxArrivalTime: maxArrivalTime }));
-
-    const lineGroup = document.createElement('div');
-    lineGroup.className = 'line-group'; // add margin/padding via CSS
-
-    for (const { line, maxArrivalTime } of linesToShow) {
-      const lineDetails = document.createElement('details');
-      const lineKey = getStorageKey('line', `${stopId}-${line}`);
-      restoreDetailsState(lineDetails, lineKey);
-      saveDetailsState(lineDetails, lineKey);
-
-      const lineSummary = document.createElement('summary');
-      lineSummary.textContent = `Line ${line}`;
-      lineDetails.appendChild(lineSummary);
-
-      const lineArrivals = arrivals.filter(a => a.lineName === line && a.timeToStation <= maxArrivalTime);
-
-      if (lineArrivals.length === 0) {
-        const noData = document.createElement('div');
-        noData.className = 'no-arrivals';
-        noData.textContent = 'No upcoming arrivals.';
-        lineDetails.appendChild(noData);
-      } else {
-        lineArrivals.forEach(arrival => {
-          const arrivalDiv = document.createElement('div');
-          arrivalDiv.className = 'arrival';
-          arrivalDiv.innerHTML = `
-            <strong>To ${arrival.destinationName}</strong><br>
-            Arriving in <strong>${Math.round(arrival.timeToStation / 60)} min</strong>`;
-          if (arrival.departureTime) {
-                arrivalDiv.innerHTML += ` at ${arrival.departureTime.toLocaleTimeString('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false
-})}`;
-            };
-            if (arrival.expectedArrival) {
-                arrivalDiv.innerHTML += ` at ${new Date(arrival.expectedArrival).toLocaleTimeString('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false
-})}`;
-}
-            lineDetails.appendChild(arrivalDiv);
-        });
-      }
-
-      lineGroup.appendChild(lineDetails);
-    }
-
-    stopDetails.appendChild(lineGroup);
-    directionContainer.appendChild(stopDetails);
+  if (!container) {
+    container = document.createElement("div");
+    container.id = statusContainerId;
+    container.className = "line-status";
+    document.body.insertBefore(container, document.getElementById("arrivals-container"));
   }
 
-  container.appendChild(directionContainer);
+  const url = `https://api.tfl.gov.uk/Line/${lines.join(",")}/Status`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    container.innerHTML = "";
+    data.forEach((line) => {
+      const div = document.createElement("div");
+      const status = line.lineStatuses[0]?.statusSeverityDescription || "Unknown";
+      div.innerHTML = `<strong>${capitalizeLineName(line.id)}</strong>: ${status}`;
+      container.appendChild(div);
+    });
+  } catch (err) {
+    console.error("Failed to fetch line statuses", err);
+  }
 }
 
-//buildUI();
-//setInterval(buildUI, config.refreshInterval);
+function capitalizeLineName(name) {
+  if (!name) return "";
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function formatTime(date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}

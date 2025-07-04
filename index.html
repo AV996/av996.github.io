@@ -7,8 +7,29 @@
 </head>
 <body class="landing">
   <h1>Welcome to TfL Arrivals</h1>
-  <a href="somerton_road_southbound.html">Somerton Road Southbound</a>
-  <a href="wh_kilburn_northbound.html">West Hampstead and Kilburn Northbound</a>
-  <a href="somerton_road_northbound.html">Somerton Road Northbound</a>
+  <div id="links-container"></div>
+
+  <!-- Load PageConfigs first -->
+  <script src="js/config/pages.js"></script>
+
+  <!-- Then populate the links -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const container = document.getElementById("links-container");
+
+      if (typeof PageConfigs !== 'object') {
+        container.innerHTML = "<p>Error loading configuration.</p>";
+        return;
+      }
+
+      for (const [key, config] of Object.entries(PageConfigs)) {
+        const link = document.createElement("a");
+        link.href = `direction.html?page=${key}`;
+        link.textContent = config.headline;
+        container.appendChild(link);
+        container.appendChild(document.createElement("br"));
+      }
+    });
+  </script>
 </body>
 </html>
