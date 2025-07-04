@@ -176,7 +176,7 @@ function renderArrivalsToList(ul, arrivals, directionFilter) {
       ? formatTime(new Date(arrival.expectedArrivalTime))
       : formatTime(new Date(Date.now() + arrival.timeToStation * 1000));
 
-    li.textContent = `${capitalizeLineName(arrival.lineName)} to ${arrival.destinationName} – ${minutes} min (${arrivalTime})`;
+    li.innerHTML = `${capitalizeLineName(arrival.lineName)} to ${arrival.destinationName} – <strong>${minutes} min</strong> (${arrivalTime})`;
     ul.appendChild(li);
   });
 }
