@@ -18,8 +18,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("headline").textContent = headline;
 
-  await new Promise(r => setTimeout(r, 100)); //css slow on mobile, hack for now just try out
-
   await renderArrivalStops(stops);
 
   if (ArrivalConfig.refreshInterval) {
@@ -160,7 +158,7 @@ function renderArrivalsToList(ul, arrivals, directionFilter) {
         }
       } 
 
-      filter = a.timeToStation/60 <= maxArrivalTime && directionFilterResult;
+      filter = a.timeToStation/60 <= maxArrivalTime && a.timeToStation > 0 && directionFilterResult;
       return (filter
       )
     }

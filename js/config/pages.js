@@ -86,6 +86,14 @@ const ArrivalConfig = {
         ],
       },
       {
+        stopId: '490002314YY',
+        name: 'Brent Cross West',
+        lines: [
+          { line: '189', maxArrivalTime },
+        ],
+        directionFilter: [true, ['outbound']],
+      },
+      {
         stopId: '910GBRENTX',
         name: 'Brent Cross West Thameslink Southbound',
         lines: [{ line: 'thameslink', maxArrivalTime }],
