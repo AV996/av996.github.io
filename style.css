@@ -12,6 +12,11 @@ h1 {
   margin-bottom: 1.5rem;
 }
 
+.line-status {
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+}
+
 /* Styles for landing page */
 
 body.landing {
@@ -40,7 +45,3 @@ body.landing a:hover {
   background: #005fa3;
 }
 
-.line-status {
-  font-weight: bold;
-  margin-bottom: 0.3rem;
-}

@@ -18,6 +18,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("headline").textContent = headline;
 
+  await new Promise(r => setTimeout(r, 100)); //css slow on mobile, hack for now just try out
+
   await renderArrivalStops(stops);
 
   if (ArrivalConfig.refreshInterval) {
