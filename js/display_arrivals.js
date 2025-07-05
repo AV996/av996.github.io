@@ -279,7 +279,7 @@ function getStatusColor(status) {
   if (statusLower.includes('good') || statusLower.includes('running')) return '#28a745';
   if (statusLower.includes('delay') || statusLower.includes('disruption')) return '#ffc107';
   if (statusLower.includes('suspended') || statusLower.includes('closed')) return '#dc3545';
-  return '#6c757d';
+  return '#dc3545';
 }
 
 function capitalizeLineName(name) {

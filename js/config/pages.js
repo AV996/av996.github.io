@@ -133,6 +133,46 @@ const ArrivalConfig = {
         mode: 'rail',
         destinationStation: '910GCRKLWD'
       },
+    ],
+    'Finchley Road': [
+      {
+        linesWithStatus: ['jubilee', 'metropolitan']
+      },
+      {
+        stopId: '490000082R',
+        name: 'Finchely Road Northbound',
+        lines: [
+          { line: 'C11', maxArrivalTime },
+        ],
+      },
+      {
+        stopId: '490000082FK',
+        name: 'Finchely Road Northbound',
+        lines: [
+          { line: '113', maxArrivalTime },
+        ],
+      },
+      {
+        stopId: '490001109FD',
+        name: 'Finchely Road & Frognal Northbound',
+        lines: [
+          { line: '113', maxArrivalTime },
+        ],
+      },
+      {
+        stopId: '910GHGHI',
+        name: 'Finchley Road & Frognal Overground Mildmay Westbound',
+        lines: [{line: 'mildmay', maxArrivalTime}],
+        mode: 'overground',
+        directionFilter: [true, ['outbound']],
+      },
+      {
+        stopId: '910GHGHI',
+        name: 'Finchley Road & Frognal Overground Mildmay Eastbound',
+        lines: [{line: 'mildmay', maxArrivalTime}],
+        mode: 'overground',
+        directionFilter: [true, ['inbound']],
+      },
     ]
   }
 };
@@ -158,5 +198,9 @@ const PageConfigs = {
     headline: "Drayton Park",
     directionKey: "Drayton Park",
   },  
+  finchley_road:{
+    headline: "Finchley Road",
+    directionKey: "Finchley Road",
+  }
 };
 
