@@ -18,8 +18,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("headline").textContent = headline;
 
-  await new Promise(r => setTimeout(r, 200));
-
   await renderArrivalStops(stops);
 
   if (ArrivalConfig.refreshInterval) {
