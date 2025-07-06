@@ -151,7 +151,7 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
       if (!leg) return null;
 
       const departureTime = new Date(journey.startDateTime);
-      const minutes = Math.round((departureTime - now) / 60000);
+      const minutes = Math.floor((departureTime - now) / 60000);
 
       return {
         destinationName: leg.arrivalPoint?.commonName || "Unknown",
@@ -228,7 +228,7 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
 
   arrivals.forEach((arrival) => {
     const li = document.createElement("li");
-    const minutes = Math.round(arrival.timeToStation / 60);
+    const minutes = Math.floor(arrival.timeToStation / 60);
     const arrivalTime = arrival.expectedArrivalTime
       ? formatTime(new Date(arrival.expectedArrivalTime))
       : formatTime(new Date(Date.now() + arrival.timeToStation * 1000));
