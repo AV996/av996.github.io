@@ -5,7 +5,7 @@ const ArrivalConfig = {
   directions: {
     Southbound: [
       {
-        linesWithStatus: ['victoria', 'jubilee']
+        linesWithStatus: ['jubilee', 'thameslink', 'mildmay', 'metropolitan', 'victoria']
       },
       {
         stopId: '490012230S',
@@ -110,7 +110,7 @@ const ArrivalConfig = {
     ],
     'Drayton Park': [
       {
-        linesWithStatus: ['victoria']
+        linesWithStatus: ['mildmay', 'victoria', 'thameslink']
       },
       {
         stopId: '910GDRYP',
@@ -136,7 +136,7 @@ const ArrivalConfig = {
     ],
     'Finchley Road': [
       {
-        linesWithStatus: ['jubilee', 'metropolitan']
+        linesWithStatus: ['jubilee', 'metropolitan', 'mildmay']
       },
       {
         stopId: '490000082R',
@@ -173,6 +173,42 @@ const ArrivalConfig = {
         mode: 'overground',
         directionFilter: [true, ['inbound']],
       },
+    ],
+    'Richmond': [
+      {
+        linesWithStatus: ['mildmay', 'jubilee', 'metropolitan', 'district']
+      },
+      {
+        stopId: '490003186E',
+        name: 'Mill Lane',
+        lines: [
+          { line: 'C11', maxArrivalTime },
+        ],
+      },
+      {
+        stopId: '910GWHMDSTD',
+        name: 'West Hampstead Overground Mildmay Eastbound',
+        lines: [{line: 'mildmay', maxArrivalTime}],
+        mode: 'overground',
+        directionFilter: [true, ['outbound']],
+        destinationFilter:[true, ['richmond']]
+      },
+      {
+        stopId: '9100WATRLMN1',
+        name: 'Waterloo',
+        lines: [{ line: 'south-western-railway', maxArrivalTime }],
+        mode: 'rail',
+        destinationStation: '9100RICHMND1'
+      },
+      {
+        stopId: '490000192D',
+        name: 'Richmond',
+        lines: [
+          { line: '65', maxArrivalTime },
+          { line: '371', maxArrivalTime },
+        ],
+        mixSortedDepartureTimes: true
+      },
     ]
   }
 };
@@ -201,6 +237,10 @@ const PageConfigs = {
   finchley_road:{
     headline: "Finchley Road",
     directionKey: "Finchley Road",
+  },
+  Richmond:{
+    headline: "Richmond",
+    directionKey: "Richmond",
   }
 };
 

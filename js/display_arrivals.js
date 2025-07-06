@@ -194,10 +194,20 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
         lineFilterResult = a.lineName.toLowerCase() === lineConfig.line.toLowerCase()
       }
 
+      destinationFilterResult = true
+      if(lineConfig && lineConfig.destinationFilter){
+        if(lineConfig.destinationFilter[0]) {
+          destinationFilterResult = lineConfig.destinationFilter[1].some(term => a.destinationFilter.toLowerCase().includes(term.toLowerCase()))
+        } else {
+          destinationFilterResult = !lineConfig.destinationFilter[1].some(term => a.destinationFilter.toLowerCase().includes(term.toLowerCase()))
+        }
+      }
+
       filter = a.timeToStation/60 <= maxArrivalTime 
               && a.timeToStation > 0 
               && directionFilterResult
-              && lineFilterResult;
+              && lineFilterResult
+              && destinationFilterResult;
       return (filter
       )
     }
@@ -253,6 +263,12 @@ async function renderLineStatuses(lines) {
     
     const data = await res.json();
     container.innerHTML = "";
+
+
+    // Create a lookup for ordering
+    const orderMap = Object.fromEntries(lines.map((id, index) => [id, index]));
+    // Sort based on the index in `lines`
+    data.sort((a, b) => (orderMap[a.id] ?? Infinity) - (orderMap[b.id] ?? Infinity));
     
     data.forEach((line) => {
       const div = document.createElement("div");
