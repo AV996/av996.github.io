@@ -179,7 +179,7 @@ const ArrivalConfig = {
         linesWithStatus: ['mildmay', 'jubilee', 'metropolitan', 'district']
       },
       {
-        stopId: '490003186E',
+        stopId: '490011931S',
         name: 'Mill Lane',
         lines: [
           { line: 'C11', maxArrivalTime },
