@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const pageKey = params.get("page");
@@ -18,6 +17,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("headline").textContent = headline;
 
+  // Show loading state under headline
+  const container = document.getElementById("arrivals-container");
+  container.innerHTML = '<div style="text-align: left; padding: 10px 0; color: #666;">Loading...</div>';
+
   await renderArrivalStops(stops);
 
   if (ArrivalConfig.refreshInterval) {
@@ -29,50 +32,164 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function renderArrivalStops(stopConfigs) {
   const container = document.getElementById("arrivals-container");
-  container.innerHTML = "";
 
+  // Collect all API calls to execute in parallel
+  const apiCalls = [];
+  const callMetadata = [];
+
+  // Handle line status calls
   const statusEntry = stopConfigs.find(entry => entry.linesWithStatus);
   if (statusEntry && statusEntry.linesWithStatus) {
-    await renderLineStatuses(statusEntry.linesWithStatus);
+    apiCalls.push(fetchLineStatuses(statusEntry.linesWithStatus));
+    callMetadata.push({ type: 'lineStatus', lines: statusEntry.linesWithStatus });
   }
 
-  // Clear loading state
-  container.innerHTML = "";
-
+  // Handle arrival calls for each stop
   for (const stop of stopConfigs) {
     if (stop.linesWithStatus) {
-      continue
+      continue;
     }
+
     const stopId = stop.stopId;
-    const div = document.createElement("div");
-    div.className = "stop-block";
-
-    const stopName = stop.name || "Unnamed Stop";
-    const title = document.createElement("h2");
-    title.textContent = stopName;
-    div.appendChild(title);
-
-    const ul = document.createElement("ul");
-    div.appendChild(ul);
-
     const mode = stop.mode || "bus";
-    try{
-    if (!stop.lines || stop.lines.length === 0) {
-      const arrivals = await fetchArrivals(stopId, mode);
-      renderArrivalsToList(ul, arrivals, stop.directionFilter);
-    } else {
-      for (const lineConfig of stop.lines) {
-        let arrivals;
-        if (mode === 'rail') {
-          arrivals = await fetchNationalRailArrivals(stopId, stop);
-        } else {
-          arrivals = await fetchArrivals(stopId, mode, lineConfig.line);
-        }
 
-        if (arrivals) {
-          renderArrivalsToList(ul, arrivals, stop.directionFilter, lineConfig);
-        }
+    if (!stop.lines || stop.lines.length === 0) {
+      // Single call for all arrivals at this stop
+      apiCalls.push(fetchArrivals(stopId, mode));
+      callMetadata.push({ 
+        type: 'arrivals', 
+        stopId, 
+        stop, 
+        mode,
+        lines: null
+      });
+    } else if (mode === 'rail') {
+      // National rail still needs separate calls per line due to different API structure
+      for (const lineConfig of stop.lines) {
+        apiCalls.push(fetchNationalRailArrivals(stopId, stop));
+        callMetadata.push({ 
+          type: 'nationalRail', 
+          stopId, 
+          stop, 
+          mode,
+          lineConfig 
+        });
       }
+    } else {
+      // Single call for all lines at this stop using comma-separated list
+      const lineNames = stop.lines.map(l => l.line);
+      apiCalls.push(fetchArrivals(stopId, mode, lineNames));
+      callMetadata.push({ 
+        type: 'arrivals', 
+        stopId, 
+        stop, 
+        mode,
+        lines: stop.lines
+      });
+    }
+  }
+
+  // Execute all API calls in parallel
+  const results = await Promise.all(apiCalls);
+
+  // Clear loading state before rendering
+  container.innerHTML = "";
+
+  // Process line status results
+  const lineStatusResults = results.filter((_, index) => callMetadata[index].type === 'lineStatus');
+  if (lineStatusResults.length > 0) {
+    await renderLineStatusResults(lineStatusResults[0], callMetadata.find(m => m.type === 'lineStatus').lines);
+  }
+
+  // Process arrival results and render stops in original order
+  let resultIndex = 0;
+  for (const stop of stopConfigs) {
+    if (stop.linesWithStatus) {
+      continue;
+    }
+
+    // Find the corresponding result(s) for this stop
+    const stopResults = [];
+    while (resultIndex < results.length && resultIndex < callMetadata.length) {
+      const metadata = callMetadata[resultIndex];
+      if (metadata.type === 'lineStatus') {
+        resultIndex++;
+        continue;
+      }
+      
+      if (metadata.stopId === stop.stopId) {
+        stopResults.push({
+          arrivals: results[resultIndex],
+          metadata: metadata
+        });
+        resultIndex++;
+        break;
+      }
+    }
+
+    renderSingleStop(container, stop, stopResults);
+  }
+}
+
+function renderSingleStop(container, stop, stopResults) {
+  const stopId = stop.stopId;
+  const div = document.createElement("div");
+  div.className = "stop-block";
+
+  const stopName = stop.name || "Unnamed Stop";
+  const title = document.createElement("h2");
+  title.textContent = stopName;
+  div.appendChild(title);
+
+  const ul = document.createElement("ul");
+  div.appendChild(ul);
+
+  try {
+    if (stopResults.length === 0) {
+      const errorLi = document.createElement("li");
+      errorLi.textContent = "No arrivals data available.";
+      errorLi.style.color = "#dc3545";
+      ul.appendChild(errorLi);
+    } else if (stop.mixSortedDepartureTimes) {
+      // Combine all arrivals and sort them together
+      const allArrivals = [];
+      stopResults.forEach(result => {
+        if (result.arrivals && result.arrivals.length > 0) {
+          result.arrivals.forEach(arrival => {
+            // Attach line config info to individual arrivals for filtering
+            if (result.metadata.lines) {
+              const matchingLineConfig = result.metadata.lines.find(l => 
+                l.line.toLowerCase() === arrival.lineName.toLowerCase()
+              );
+              if (matchingLineConfig) {
+                arrival.lineConfig = matchingLineConfig;
+              }
+            }
+            allArrivals.push(arrival);
+          });
+        }
+      });
+      renderArrivalsToList(ul, allArrivals, stop.directionFilter, null);
+    } else {
+      // Render each result group
+      stopResults.forEach(result => {
+        // if (result.metadata.type === 'nationalRail') {
+        //   // National rail - render with line config
+        //   renderArrivalsToList(ul, result.arrivals, stop.directionFilter, result.metadata.lineConfig);
+        // } else 
+        if (result.metadata.lines) {
+          // Multiple lines - render each line separately
+          result.metadata.lines.forEach(lineConfig => {
+            const lineArrivals = result.arrivals.filter(a => 
+              a.lineName.toLowerCase() === lineConfig.line.toLowerCase()
+            );
+            renderArrivalsToList(ul, lineArrivals, stop.directionFilter, lineConfig);
+          });
+        } else {
+          // Single call for all arrivals
+          renderArrivalsToList(ul, result.arrivals, stop.directionFilter, result.metadata.lineConfig);
+        }
+      });
     }
   } catch (error) {
     console.error(`Error rendering stop ${stopName}:`, error);
@@ -81,12 +198,19 @@ async function renderArrivalStops(stopConfigs) {
     errorLi.style.color = "#dc3545";
     ul.appendChild(errorLi);
   }
+  
   container.appendChild(div);
 }
-}
 
-async function fetchArrivals(stopId, mode = "bus", line = null) {
-  const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/Arrivals`;
+async function fetchArrivals(stopId, mode = "bus", lines = null) {
+  let url = `https://api.tfl.gov.uk/StopPoint/${stopId}/Arrivals`;
+  
+  // Add line filter to URL if lines are specified
+  if (lines) {
+    const lineParams = Array.isArray(lines) ? lines.join(',') : lines;
+    url += `?lineIds=${encodeURIComponent(lineParams)}`;
+  }
+  
   try {
     // Add timeout for mobile networks
     const controller = new AbortController();
@@ -100,13 +224,7 @@ async function fetchArrivals(stopId, mode = "bus", line = null) {
     }
     
     const arrivals = await res.json();
-    let filtered = arrivals;
-    
-    if (line) {
-      filtered = arrivals.filter((a) => a.lineName.toLowerCase() === line.toLowerCase());
-    }
-    
-    return filtered;
+    return arrivals;
   } catch (err) {
     if (err.name === 'AbortError') {
       console.error(`Request timeout for ${stopId}`);
@@ -177,7 +295,7 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
 }
 
 function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
-
+  
   arrivals = arrivals.filter(
     (a) => {
       directionFilterResult = true
@@ -203,7 +321,11 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
         }
       }
 
-      filter = a.timeToStation/60 <= maxArrivalTime 
+      // Handle case where lineConfig is attached to individual arrivals (for mixed sorting)
+      const effectiveLineConfig = lineConfig || a.lineConfig;
+      const maxTime = effectiveLineConfig?.maxArrivalTime || maxArrivalTime;
+
+      filter = a.timeToStation/60 <= maxTime 
               && a.timeToStation > 0 
               && directionFilterResult
               && lineFilterResult
@@ -220,7 +342,8 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
     if(lineConfig && lineConfig.line){
       li.textContent += lineConfig.line + ": ";
     }
-    li.textContent += "No upcoming arrivals in the next " + maxArrivalTime + " minutes.";
+    const maxTime = lineConfig?.maxArrivalTime || maxArrivalTime;
+    li.textContent += "No upcoming arrivals in the next " + maxTime + " minutes.";
     li.style.color = "#ffc107";
     ul.appendChild(li);
     return;
@@ -228,7 +351,7 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
 
   arrivals.forEach((arrival) => {
     const li = document.createElement("li");
-    const minutes = Math.floor(arrival.timeToStation / 60);
+          const minutes = Math.floor(arrival.timeToStation / 60);
     const arrivalTime = arrival.expectedArrivalTime
       ? formatTime(new Date(arrival.expectedArrivalTime))
       : formatTime(new Date(Date.now() + arrival.timeToStation * 1000));
@@ -238,17 +361,7 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
   });
 }
 
-async function renderLineStatuses(lines) {
-  const statusContainerId = "line-status";
-  let container = document.getElementById(statusContainerId);
-
-  if (!container) {
-    container = document.createElement("div");
-    container.id = statusContainerId;
-    container.className = "line-status";
-    document.body.insertBefore(container, document.getElementById("arrivals-container"));
-  }
-
+async function fetchLineStatuses(lines) {
   const url = `https://api.tfl.gov.uk/Line/${lines.join(",")}/Status`;
 
   try {
@@ -262,32 +375,48 @@ async function renderLineStatuses(lines) {
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     
     const data = await res.json();
-    container.innerHTML = "";
-
-
-    // Create a lookup for ordering
-    const orderMap = Object.fromEntries(lines.map((id, index) => [id, index]));
-    // Sort based on the index in `lines`
-    data.sort((a, b) => (orderMap[a.id] ?? Infinity) - (orderMap[b.id] ?? Infinity));
-    
-    data.forEach((line) => {
-      const div = document.createElement("div");
-      const status = line.lineStatuses[0]?.statusSeverityDescription || "Unknown";
-      const statusColor = getStatusColor(status);
-      
-      div.innerHTML = `<strong>${capitalizeLineName(line.id)} Line</strong>: <span style="color: ${statusColor}">${status}</span>`;
-      container.appendChild(div);
-    });
+    return data;
   } catch (err) {
     if (err.name === 'AbortError') {
       console.error("Line status request timeout");
     } else {
     console.error("Failed to fetch line statuses", err);
+    }
+    return null;
   }
-    
-    // Show error state
+}
+
+async function renderLineStatusResults(data, lines) {
+  const statusContainerId = "line-status";
+  let container = document.getElementById(statusContainerId);
+
+  if (!container) {
+    container = document.createElement("div");
+    container.id = statusContainerId;
+    container.className = "line-status";
+    document.body.insertBefore(container, document.getElementById("arrivals-container"));
+  }
+
+  if (!data) {
     container.innerHTML = '<div style="color: #dc3545;">Unable to load line status</div>';
+    return;
   }
+
+  container.innerHTML = "";
+
+  // Create a lookup for ordering
+  const orderMap = Object.fromEntries(lines.map((id, index) => [id, index]));
+  // Sort based on the index in `lines`
+  data.sort((a, b) => (orderMap[a.id] ?? Infinity) - (orderMap[b.id] ?? Infinity));
+  
+  data.forEach((line) => {
+    const div = document.createElement("div");
+    const status = line.lineStatuses[0]?.statusSeverityDescription || "Unknown";
+    const statusColor = getStatusColor(status);
+    
+    div.innerHTML = `<strong>${capitalizeLineName(line.id)} Line</strong>: <span style="color: ${statusColor}">${status}</span>`;
+    container.appendChild(div);
+  });
 }
 
 function getStatusColor(status) {
