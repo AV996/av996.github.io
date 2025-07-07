@@ -140,7 +140,7 @@ const ArrivalConfig = {
       },
       {
         stopId: '490000082R',
-        name: 'Finchely Road Northbound',
+        name: 'Finchely Road WestBound',
         lines: [
           { line: 'C11', maxArrivalTime },
         ],
@@ -151,6 +151,27 @@ const ArrivalConfig = {
         lines: [
           { line: '113', maxArrivalTime },
         ],
+      },
+      {
+        stopId: '490001330N',
+        name: 'West Hampstead',
+        lines: [
+          { line: 'C11', maxArrivalTime },
+        ],
+      },
+      {
+        stopId: '490001038N',
+        name: 'Brondesbury',
+        lines: [
+          { line: '189', maxArrivalTime },
+        ],
+      },
+      {
+        stopId: '910GWHMPSTM',
+        name: 'West Hampstead Thameslink',
+        lines: [{ line: 'thameslink', maxArrivalTime }],
+        mode: 'rail',
+        destinationStation: '910GCRKLWD'
       },
       {
         stopId: '490001109FD',
