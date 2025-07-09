@@ -237,7 +237,7 @@ const ArrivalConfig = {
       },
       {
         stopId: '490010969N',
-        name: 'Subrook Lane',
+        name: 'Sudbrook Lane',
         lines: [
           { line: '65', maxArrivalTime },
           { line: '371', maxArrivalTime },
