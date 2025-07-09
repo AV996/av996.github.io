@@ -2,6 +2,12 @@ const maxArrivalTime = 60; // in minutes
 
 const ArrivalConfig = {
   //refreshInterval: 30000,
+
+  // Need to handle clapham junction for overground via destinationFilter 
+  // becaue this api call returns the wrong destination naptan id: https://api.tfl.gov.uk/StopPoint/910GFNCHLYR/ArrivalDepartures?lineIds=mildmay
+  // It return 910GCLPHMJ1 which does not work here https://api.tfl.gov.uk/StopPoint/910GFNCHLYR/DirectionTo/910GCLPHMJ1?mildmay
+  // because the correct naptan id for Clapham Junction Mildmay line is 910GCLPHMJC and not 910GCLPHMJ1
+  
   directions: {
     Southbound: [
       {
@@ -32,9 +38,10 @@ const ArrivalConfig = {
       {
         stopId: '910GWHMDSTD',
         name: 'West Hampstead Overground',
-        lines: [],
+        lines: [{ line: 'mildmay', maxArrivalTime }],
         mode: 'overground',
         directionFilter: [true, ['inbound']],
+        destinationFilter: [false, ['clapham']] 
       },
       {
         stopId: '940GZZLUWHP',
@@ -181,18 +188,19 @@ const ArrivalConfig = {
         ],
       },
       {
-        stopId: '910GHGHI',
+        stopId: '910GFNCHLYR',
         name: 'Finchley Road & Frognal Overground Mildmay Westbound',
         lines: [{line: 'mildmay', maxArrivalTime}],
         mode: 'overground',
         directionFilter: [true, ['outbound']],
       },
       {
-        stopId: '910GHGHI',
+        stopId: '910GFNCHLYR',
         name: 'Finchley Road & Frognal Overground Mildmay Eastbound',
         lines: [{line: 'mildmay', maxArrivalTime}],
         mode: 'overground',
         directionFilter: [true, ['inbound']],
+         destinationFilter: [false, ['clapham']]
       },
     ],
     'Richmond': [

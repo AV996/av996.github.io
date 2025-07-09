@@ -75,7 +75,18 @@ async function renderArrivalStops(stopConfigs) {
           lineConfig 
         });
       }
-    } else {
+    } else if (mode === 'overground') {
+        for (const lineConfig of stop.lines) {
+          apiCalls.push(fetchOvergroundArrivals(stopId, stop, lineConfig));
+          callMetadata.push({ 
+            type: 'overground', 
+            stopId, 
+            stop, 
+            mode,
+            lineConfig 
+          });
+        }
+      } else {
       // Single call for all lines at this stop using comma-separated list
       const lineNames = stop.lines.map(l => l.line);
       apiCalls.push(fetchArrivals(stopId, mode, lineNames));
@@ -169,7 +180,7 @@ function renderSingleStop(container, stop, stopResults) {
           });
         }
       });
-      renderArrivalsToList(ul, allArrivals, stop.directionFilter, null);
+      renderArrivalsToList(ul, allArrivals, stop, null);
     } else {
       // Render each result group
       stopResults.forEach(result => {
@@ -183,11 +194,11 @@ function renderSingleStop(container, stop, stopResults) {
             const lineArrivals = result.arrivals.filter(a => 
               a.lineName.toLowerCase() === lineConfig.line.toLowerCase()
             );
-            renderArrivalsToList(ul, lineArrivals, stop.directionFilter, lineConfig);
+            renderArrivalsToList(ul, lineArrivals, stop, lineConfig);
           });
         } else {
           // Single call for all arrivals
-          renderArrivalsToList(ul, result.arrivals, stop.directionFilter, result.metadata.lineConfig);
+          renderArrivalsToList(ul, result.arrivals, stop, result.metadata.lineConfig);
         }
       });
     }
@@ -208,7 +219,7 @@ async function fetchArrivals(stopId, mode = "bus", lines = null) {
   // Add line filter to URL if lines are specified
   if (lines) {
     const lineParams = Array.isArray(lines) ? lines.join(',') : lines;
-    url += `?lineIds=${encodeURIComponent(lineParams)}`;
+      url += `?lineIds=${encodeURIComponent(lineParams)}`;
   }
   
   try {
@@ -234,6 +245,83 @@ async function fetchArrivals(stopId, mode = "bus", lines = null) {
     return [];
   }
 }
+
+async function fetchOvergroundArrivals(stopId, stopConfig, lineConfig) {
+  const line = lineConfig.line;
+  if (!line) {
+    console.warn(`Missing line for overground stopId ${stopId}`);
+    return [];
+  }
+
+  const url = `https://api.tfl.gov.uk/StopPoint/${stopId}/ArrivalDepartures?lineIds=${line}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 sec timeout
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+
+    const departures = await res.json();
+
+    const now = new Date();
+
+    const promises = departures.map(async (d) => {
+      const expected = new Date(d.estimatedTimeOfDeparture);
+      const secondsToArrival = Math.floor((expected - now) / 1000);
+
+      let directionData = null;
+      if(stopConfig.directionFilter){
+        const direction_url = `https://api.tfl.gov.uk/StopPoint/${stopId}/DirectionTo/${d.destinationNaptanId}?${line}`;
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 sec timeout
+          const res = await fetch(direction_url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            //throw new Error(`HTTP error ${res.status}`);
+            // do not throw because this gives the wrong destination naptan id: https://api.tfl.gov.uk/StopPoint/910GFNCHLYR/ArrivalDepartures?lineIds=mildmay
+            // it return 910GCLPHMJ1 which does not work here https://api.tfl.gov.uk/StopPoint/910GFNCHLYR/DirectionTo/910GCLPHMJ1?mildmay
+            // because the correct naptan id for Clapham Juncion Mildmay line is 910GCLPHMJC and not 910GCLPHMJ1
+            console.error(`Failed to fetch direction data for ${stopId}: ${res.status}`);
+            directionData = 'direction not found';
+          } else {
+            directionData = await res.json();
+          }
+        } catch (e) {
+          if (e.name === 'AbortError') {
+            console.error("Overground direction request timeout");
+          } else {
+            console.error("Failed to fetch Overground direction:", e);
+          }
+        }
+      }
+      return {
+        destinationName: d.destinationName,
+        timeToStation: secondsToArrival,
+        expectedArrivalTime: expected,
+        platform: d.platformName || "N/A",
+        lineName: line,
+        departureStatus: d.departureStatus || "",
+        direction: directionData || d.direction || "", // fallback to d.direction if direction API fails
+      };
+    });
+
+    const arrivals = await Promise.all(promises);
+    return arrivals.filter(Boolean);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      console.error("Overground request timeout");
+    } else {
+      console.error("Failed to fetch Overground arrivals:", e);
+    }
+    return [];
+  }
+}
+
 
 async function fetchNationalRailArrivals(stopId, stopConfig) {
   const line = stopConfig.lines?.[0]?.line;
@@ -275,7 +363,7 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
         destinationName: leg.arrivalPoint?.commonName || "Unknown",
         timeToStation: minutes * 60,
         departureTime: departureTime,
-        platform: leg.departurePlatform || "N/A",
+        //platform: leg.platformName || "N/A", //platform appears to always be empty
         lineName: leg.routeOptions?.[0]?.name || line,
         cause: leg.disruptions?.[0]?.description || "",
         departureStatus: minutes >= 0 ? "ON TIME" : "DELAYED",
@@ -294,11 +382,11 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
   }
 }
 
-function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
-  
+function renderArrivalsToList(ul, arrivals, stop, lineConfig) {
+  const directionFilter = stop.directionFilter || null;
   arrivals = arrivals.filter(
     (a) => {
-      directionFilterResult = true
+      let directionFilterResult = true
       if(directionFilter){  
         if(directionFilter[0]) {
           directionFilterResult = directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
@@ -306,32 +394,31 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
           directionFilterResult = !directionFilter[1].some(term => a.direction.toLowerCase().includes(term.toLowerCase()))
         }
       } 
+      directionFilterResult = directionFilterResult || a.direction === 'direction not found'
 
-      lineFilterResult = true
+      let lineFilterResult = true
       if(lineConfig && lineConfig.lineName){
         lineFilterResult = a.lineName.toLowerCase() === lineConfig.line.toLowerCase()
       }
 
-      destinationFilterResult = true
-      if(lineConfig && lineConfig.destinationFilter){
-        if(lineConfig.destinationFilter[0]) {
-          destinationFilterResult = lineConfig.destinationFilter[1].some(term => a.destinationFilter.toLowerCase().includes(term.toLowerCase()))
+      let destinationFilterResult = true
+      if(stop && stop.destinationFilter){
+        if(stop.destinationFilter[0]) {
+          destinationFilterResult = stop.destinationFilter[1].some(term => a.destinationName.toLowerCase().includes(term.toLowerCase()))
         } else {
-          destinationFilterResult = !lineConfig.destinationFilter[1].some(term => a.destinationFilter.toLowerCase().includes(term.toLowerCase()))
+          destinationFilterResult = !stop.destinationFilter[1].some(term => a.destinationName.toLowerCase().includes(term.toLowerCase()))
         }
       }
 
       // Handle case where lineConfig is attached to individual arrivals (for mixed sorting)
       const effectiveLineConfig = lineConfig || a.lineConfig;
       const maxTime = effectiveLineConfig?.maxArrivalTime || maxArrivalTime;
-
       filter = a.timeToStation/60 <= maxTime 
               && a.timeToStation > 0 
               && directionFilterResult
               && lineFilterResult
               && destinationFilterResult;
-      return (filter
-      )
+      return (filter)
     }
   )
 
@@ -356,7 +443,8 @@ function renderArrivalsToList(ul, arrivals, directionFilter, lineConfig) {
       ? formatTime(new Date(arrival.expectedArrivalTime))
       : formatTime(new Date(Date.now() + arrival.timeToStation * 1000));
 
-    li.innerHTML = `${capitalizeLineName(arrival.lineName)} to ${arrival.destinationName} – <strong>${minutes} min</strong> (${arrivalTime})`;
+    const platformText = arrival.platform ? ` | Platform ${arrival.platform}` : '';
+    li.innerHTML = `${capitalizeLineName(arrival.lineName)} to ${arrival.destinationName}${platformText} – <strong>${minutes} min</strong> (${arrivalTime})`; 
     ul.appendChild(li);
   });
 }
