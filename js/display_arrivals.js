@@ -266,9 +266,9 @@ async function fetchNationalRailArrivals(stopId, stopConfig) {
 
     data = data_raw.journeys.map(journey => {
       const leg = journey.legs?.[0];
-      if (!leg) return null;
+      if (!leg) return null; 
 
-      const departureTime = new Date(journey.startDateTime);
+      const departureTime = new Date(leg.departureTime);
       const minutes = Math.floor((departureTime - now) / 60000);
 
       return {

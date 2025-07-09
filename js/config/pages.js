@@ -215,13 +215,6 @@ const ArrivalConfig = {
         destinationFilter:[true, ['richmond']]
       },
       {
-        stopId: '9100WATRLMN1',
-        name: 'Waterloo',
-        lines: [{ line: 'south-western-railway', maxArrivalTime }],
-        mode: 'rail',
-        destinationStation: '9100RICHMND1'
-      },
-      {
         stopId: '490000192D',
         name: 'Richmond',
         lines: [
@@ -229,6 +222,48 @@ const ArrivalConfig = {
           { line: '371', maxArrivalTime },
         ],
         mixSortedDepartureTimes: true
+      },
+      {
+        stopId: '9100WATRLMN1',
+        name: 'Waterloo',
+        lines: [{ line: 'south-western-railway', maxArrivalTime }],
+        mode: 'rail',
+        destinationStation: '9100RICHMND1'
+      },
+    ],
+    'Deutsche Schule': [
+      {
+        linesWithStatus: ['mildmay', 'jubilee', 'metropolitan', 'district']
+      },
+      {
+        stopId: '490010969N',
+        name: 'Subrook Lane',
+        lines: [
+          { line: '65', maxArrivalTime },
+          { line: '371', maxArrivalTime },
+        ],
+        mixSortedDepartureTimes: true
+      },
+      {
+        stopId: '910GRICHMND',
+        name: 'Richmond Overground Mildmay Northbound',
+        lines: [{line: 'mildmay', maxArrivalTime}],
+        mode: 'overground',
+        //directionFilter: [true, ['inbound']],
+      },
+      {
+        stopId: '490001330N',
+        name: 'West Hampstead',
+        lines: [
+          { line: 'C11', maxArrivalTime },
+        ],
+      },
+      {
+        stopId: '9100RICHMND1',
+        name: 'Richmond South-Western Railway',
+        lines: [{ line: 'south-western-railway', maxArrivalTime }],
+        mode: 'rail',
+        destinationStation: '9100WATRLMN1'
       },
     ]
   }
@@ -259,9 +294,14 @@ const PageConfigs = {
     headline: "Finchley Road",
     directionKey: "Finchley Road",
   },
-  Richmond:{
+  richmond:{
     headline: "Richmond",
     directionKey: "Richmond",
+  },
+  deutsche_schule:{
+    headline: "Deutsche Schule",
+    directionKey: "Deutsche Schule",
   }
+
 };
 
