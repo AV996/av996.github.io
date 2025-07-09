@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TfL Stop Search</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #0019a5;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .search-container {
+      margin-bottom: 30px;
+    }
+
+    input[type="text"] {
+      width: 70%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 25%;
+      padding: 12px;
+      background-color: #0019a5;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    button:hover {
+      background-color: #001080;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      margin: 20px 0;
+    }
+
+    .results {
+      margin-top: 30px;
+    }
+
+    .stop-result {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background-color: #fafafa;
+    }
+
+    .stop-name {
+      font-weight: bold;
+      color: #0019a5;
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    .stop-id {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .destinations {
+      margin-top: 10px;
+    }
+
+    .destination {
+      background-color: #e8f4f8;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 3px;
+      border-left: 4px solid #0019a5;
+    }
+
+    .error {
+      color: #d32f2f;
+      background-color: #ffebee;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+
+    .no-results {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Back to Landing Page</a>
+  <div class="container">
+    <h1>TfL Stop Search</h1>
+
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Enter stop name to search..." />
+      <button onclick="searchStops()" id="searchButton">Search</button>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">Searching for stops...</div>
+    <div id="results" class="results"></div>
+  </div>
+
+  <script>
+    let currentSearch = null;
+
+    document.getElementById("searchInput").addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        searchStops();
+      }
+    });
+
+    async function searchStops() {
+      const query = document.getElementById("searchInput").value.trim();
+      if (!query) {
+        alert("Please enter a stop name to search");
+        return;
+      }
+
+      if (currentSearch) {
+        currentSearch.abort();
+      }
+
+      currentSearch = new AbortController();
+
+      const loadingDiv = document.getElementById("loading");
+      const resultsDiv = document.getElementById("results");
+      const searchButton = document.getElementById("searchButton");
+
+      loadingDiv.style.display = "block";
+      resultsDiv.innerHTML = "";
+      searchButton.disabled = true;
+
+      try {
+        const response = await fetch(
+          `https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(query)}`,
+          { signal: currentSearch.signal }
+        );
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data = await response.json();
+        if (!data.matches || data.matches.length === 0) {
+          resultsDiv.innerHTML = '<div class="no-results">No stops found for this search.</div>';
+          return;
+        }
+
+        const processedStops = await Promise.all(data.matches.map(stop => processStop(stop)));
+        const sortedStops = sortStops(processedStops, query);
+        displayResults(sortedStops);
+
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.error("Error searching stops:", error);
+        resultsDiv.innerHTML = `<div class="error">Error searching for stops: ${error.message}</div>`;
+      } finally {
+        loadingDiv.style.display = "none";
+        searchButton.disabled = false;
+        currentSearch = null;
+      }
+    }
+
+    function sortStops(stops, searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      const exactMatches = [], others = [];
+
+      stops.forEach(stop => {
+        if (stop.name.toLowerCase() === lowerSearchTerm) exactMatches.push(stop);
+        else others.push(stop);
+      });
+
+      exactMatches.sort((a, b) => a.id.localeCompare(b.id));
+      others.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+
+      return [...exactMatches, ...others];
+    }
+
+    async function processStop(stop) {
+      const result = {
+        name: stop.name,
+        id: stop.id,
+        destinations: []
+      };
+
+      const specialPattern = /^(HUB)\d{3}G/;
+
+      try {
+        const stopDetailsResponse = await fetch(`https://api.tfl.gov.uk/StopPoint/${stop.id}`);
+        if (stopDetailsResponse.ok) {
+          const stopDetails = await stopDetailsResponse.json();
+
+          if (!specialPattern.test(stop.id)) {
+            try {
+              const routeResponse = await fetch(`https://api.tfl.gov.uk/StopPoint/${stop.id}/Route`);
+              if (routeResponse.ok) {
+                const routeData = await routeResponse.json();
+                if (routeData && routeData.length > 0) {
+                  routeData.forEach(route => {
+                    if (route.destinationName) {
+                      result.destinations.push({
+                        type: route.direction ? "direction" : "destinationName",
+                        direction: route.direction || null,
+                        value: route.destinationName,
+                        naptanId: stop.id,
+                        lineId: route.lineId
+                      });
+                    }
+                  });
+                }
+              }
+            } catch (error) {
+              console.error(`Error getting route for stop ${stop.id}:`, error);
+            }
+          } else if (stopDetails.additionalProperties) {
+            for (const prop of stopDetails.additionalProperties) {
+              if (prop.key === "NaptanIdReference") {
+                try {
+                  const routeResponse = await fetch(`https://api.tfl.gov.uk/StopPoint/${prop.value}/Route`);
+                  if (routeResponse.ok) {
+                    const routeData = await routeResponse.json();
+                    routeData.forEach(route => {
+                      if (route.destinationName) {
+                        result.destinations.push({
+                          type: route.direction ? "direction" : "destinationName",
+                          direction: route.direction || null,
+                          value: route.destinationName,
+                          naptanId: prop.value
+                        });
+                      }
+                    });
+                  }
+                } catch (error) {
+                  console.error(`Error getting route for ${prop.value}:`, error);
+                }
+              }
+            }
+          }
+
+          if (stopDetails.children && stopDetails.children.length > 0) {
+            for (const child of stopDetails.children) {
+              try {
+                const routeResponse = await fetch(`https://api.tfl.gov.uk/StopPoint/${child.id}/Route`);
+                if (routeResponse.ok) {
+                  const routeData = await routeResponse.json();
+                  routeData.forEach(route => {
+                    if (route.destinationName) {
+                      result.destinations.push({
+                        type: route.direction ? "direction" : "destinationName",
+                        direction: route.direction || null,
+                        value: route.destinationName,
+                        naptanId: child.id,
+                        lineId: route.lineId
+                      });
+                    }
+                  });
+                }
+              } catch (error) {
+                console.error(`Error getting route for child ${child.id}:`, error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error getting stop details for ${stop.id}:`, error);
+      }
+
+      const seen = new Set();
+      result.destinations = result.destinations.filter(dest => {
+        const key = `${dest.naptanId}-${dest.value}-${dest.lineId || ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      return result;
+    }
+
+    function displayResults(stops) {
+      const resultsDiv = document.getElementById("results");
+      if (stops.length === 0) {
+        resultsDiv.innerHTML = '<div class="no-results">No stops found.</div>';
+        return;
+      }
+
+      let html = "";
+      stops.forEach(stop => {
+        html += `
+          <div class="stop-result">
+            <div class="stop-name">${escapeHtml(stop.name)}</div>
+            <div class="stop-id">Stop ID: ${escapeHtml(stop.id)}</div>
+            <div class="destinations">
+        `;
+
+        if (stop.destinations.length > 0) {
+          stop.destinations.forEach(dest => {
+            html += `
+              <div class="destination">
+                <strong>Destination:</strong> ${escapeHtml(dest.value)}
+                ${dest.lineId ? `<br><small>Line: ${escapeHtml(dest.lineId)}</small>` : ""}
+                ${dest.naptanId && dest.naptanId !== stop.id ? `<br><small>Naptan ID: ${escapeHtml(dest.naptanId)}</small>` : ""}
+                ${dest.direction ? `<br><small>Direction: ${escapeHtml(dest.direction)}</small>` : ""}
+              </div>
+            `;
+          });
+        } else {
+          html += '<div class="destination">No destination information available</div>';
+        }
+
+        html += `</div></div>`;
+      });
+
+      resultsDiv.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

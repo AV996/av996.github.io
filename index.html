@@ -30,10 +30,21 @@
     body.landing a:hover {
       background: #005fa3;
     }
+
+    /* Custom style for the search link */
+    body.landing a.search-link {
+      background: #28a745;
+      margin-bottom: 2rem;
+    }
+
+    body.landing a.search-link:hover {
+      background: #1e7e34;
+    }
   </style>
-  </head>
+</head>
 <body class="landing">
   <h1>Welcome to TfL Arrivals</h1>
+
   <div id="links-container"></div>
 
   <!-- Load PageConfigs first -->
@@ -41,25 +52,27 @@
 
   <!-- Then populate the links -->
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    // Wait for fonts to be fully loaded before manipulating DOM
-    document.fonts.ready.then(() => {
-      const container = document.getElementById("links-container");
+    document.addEventListener("DOMContentLoaded", () => {
+      document.fonts.ready.then(() => {
+        const container = document.getElementById("links-container");
 
-      if (typeof PageConfigs !== 'object') {
-        container.innerHTML = "<p>Error loading configuration.</p>";
-        return;
-      }
+        if (typeof PageConfigs !== 'object') {
+          container.innerHTML = "<p>Error loading configuration.</p>";
+          return;
+        }
 
-      for (const [key, config] of Object.entries(PageConfigs)) {
-        const link = document.createElement("a");
-        link.href = `direction.html?page=${key}`;
-        link.textContent = config.headline;
-        container.appendChild(link);
-        container.appendChild(document.createElement("br"));
-      }
+        for (const [key, config] of Object.entries(PageConfigs)) {
+          const link = document.createElement("a");
+          link.href = `direction.html?page=${key}`;
+          link.textContent = config.headline;
+          container.appendChild(link);
+          container.appendChild(document.createElement("br"));
+        }
+      });
     });
-  });
-</script>
+  </script>
+
+  <!-- Search link with custom styling -->
+  <a href="search_stop.html" class="search-link">🔍 Search for Stops</a>
 </body>
 </html>
