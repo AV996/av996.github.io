@@ -40,10 +40,25 @@
     body.landing a.search-link:hover {
       background: #1e7e34;
     }
+
+     /* Custom style for the readme and issue link */
+    body.landing a.readme-request-link {
+      background: #28a745;
+      margin-bottom: 2rem;
+    }
+
+    body.landing a.readme-request-link:hover {
+      background: #1e7e34;
+    }
+
   </style>
 </head>
 <body class="landing">
   <h1>Welcome to TfL Arrivals</h1>
+  <div style="display: flex; gap: 1rem;">
+    <a href="https://github.com/AV996/av996.github.io" target="_blank" class="readme-request-link">View README</a>
+    <a href="https://github.com/AV996/av996.github.io/issues/new" target="_blank" class="readme-request-link">Request my own dashboard</a>
+  </div>
 
   <div id="links-container"></div>
 

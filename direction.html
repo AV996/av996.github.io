@@ -18,6 +18,28 @@
       font-weight: bold;
       margin-bottom: 0.3rem;
     }
+
+    .link-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      width: fit-content;
+      max-width: 100%; /* prevents overflow on mobile */
+    }
+
+    .readme-request-link {
+      display: block;
+      padding: 8px 12px;
+      background-color: #28a745;
+      border-radius: 6px;
+      text-decoration: none;
+      color: white;
+      font-size: 14px;
+      white-space: normal;       /* allows text to wrap */
+      box-sizing: border-box;
+      width: 100%;               /* match all links to longest one */
+    }
+
   </style>
 
 </head>
@@ -27,5 +49,15 @@
   <h1 id="headline">Loading...</h1>
   <div id="arrivals-container"></div>
   <script src="js/display_arrivals.js"></script>
+
+  <div class="link-container">
+  <a href="https://github.com/AV996/av996.github.io/issues/new" target="_blank" class="readme-request-link">
+    Report an issue with this dashboard
+  </a>
+  <a href="https://github.com/AV996/av996.github.io/issues/new" target="_blank" class="readme-request-link">
+    Request a modification to this dashboard or a new dashboard
+  </a>
+</div>
+
 </body>
 </html>
